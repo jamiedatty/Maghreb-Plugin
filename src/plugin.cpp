@@ -11,6 +11,8 @@
 #include <iostream>
 #include <string>
 
+#include <set>
+
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(linker, "/EXPORT:EuroScopePlugInInit=_EuroScopePlugInInit")
 #pragma comment(linker, "/EXPORT:EuroScopePlugInExit=_EuroScopePlugInExit")
@@ -18,6 +20,35 @@
 using namespace EuroScopePlugIn;
 using namespace Gdiplus;
 using namespace std;
+
+int state = 0; 
+
+#include <fstream>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+HINSTANCE g_hDllInstance = nullptr;
+json FetchJsonData(const std::string& airport, const std::string& runway, const std::string& fix)
+{
+    wchar_t dllPath[MAX_PATH] = {};
+    GetModuleFileNameW(g_hDllInstance, dllPath, MAX_PATH);
+    wchar_t* lastSlash = wcsrchr(dllPath, L'\\');
+    if (lastSlash) *(lastSlash + 1) = L'\0';
+
+    // Correct wide-to-narrow conversion
+    char narrowPath[MAX_PATH] = {};
+    WideCharToMultiByte(CP_ACP, 0, dllPath, -1, narrowPath, MAX_PATH, nullptr, nullptr);
+
+    std::string path = std::string(narrowPath) + "stars\\" + airport + ".json";
+
+    std::ifstream f(path);
+    if (!f.is_open()) return "";
+
+    json data = json::parse(f);
+    if (!data.contains(runway)) return "";
+    if (!data[runway].contains(fix)) return "";
+
+    return data[runway][fix];
+}
 
 void FillRoundedRect(Graphics& g, Brush& brush, int x, int y, int w, int h, int radius)
 {
@@ -34,7 +65,6 @@ void FindCorrectStar(char Airport, char Fix) {
 
 }
 
-HINSTANCE g_hDllInstance = nullptr;
 ULONG_PTR g_gdiplusToken  = 0;
 int Auto_Star = 0;
 int Coordination_cross = 0;
@@ -54,8 +84,11 @@ const int OBJECT_INDRA_PANEL = 6;
 const int STAR_TAG_ID     = 100;
 const int STAR_TAG_FUNCTION = 101;
 
-std::map<std::string, int> starState;
+const int RTE_CHECKER_ID = 110;
+const int RTE_CHECKER_FUNCTION = 111;
 
+std::map<std::string, int> starState;
+std::map<std::string, std::string> CorrectStar;
 
 BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID)
 {
@@ -377,6 +410,24 @@ public:
     virtual void OnAsrContentToBeClosed() override {}
 };
 
+void change_route(CFlightPlanData& fpData,
+                  const std::string& old_route,
+                  const std::string& new_star,
+                  const std::string& runway)
+{
+    std::string route = old_route;
+
+    size_t pos = route.find_last_of(' ');
+
+    if (pos != std::string::npos)
+    {
+        route = route.substr(0, pos);
+    }
+
+    route += " " + new_star + "/" + runway;
+
+    fpData.SetRoute(route.c_str());
+}
 class MyPlugIn : public CPlugIn
 {
     MyRadarScreen* m_Screen = nullptr;
@@ -393,6 +444,9 @@ public:
         RegisterTagItemType("Star TAG Display", STAR_TAG_ID);
         RegisterTagItemFunction("STAR Click", STAR_TAG_FUNCTION);
 
+        RegisterTagItemType("RTE TAG Display", RTE_CHECKER_ID);
+        RegisterTagItemFunction("RTE Click", RTE_CHECKER_ID);
+
         DisplayUserMessage(
             "Maghreb vACC",
             "Mag Plugin",
@@ -406,18 +460,61 @@ public:
     const char* sItemString,
     POINT Pt,
     RECT Area) override
-{
-    if (FunctionId == STAR_TAG_FUNCTION)
-    {
-        CRadarTarget rt = RadarTargetSelectASEL(); // get ASEL target instead
-        if (!rt.IsValid())
-            return;
+        {
+            CRadarTarget rt = RadarTargetSelectASEL();
 
-        std::string callsign = rt.GetCallsign();
-        starState[callsign] = (starState[callsign] + 1) % 3; 
-    }
-}
+            if (!rt.IsValid())
+                return;
 
+            CFlightPlan fp = rt.GetCorrelatedFlightPlan();
+
+            if (!fp.IsValid())
+                return;
+
+            CFlightPlanData fpData = fp.GetFlightPlanData();
+            if (FunctionId == STAR_TAG_FUNCTION)
+            {
+                CRadarTarget rt = RadarTargetSelectASEL(); // get ASEL target instead
+                if (!rt.IsValid())
+                    return;
+
+                std::string callsign = rt.GetCallsign(); 
+                CSectorElement secElm = CSectorElement();
+
+                std::string StarName = fpData.GetStarName();
+                std::string airport = fpData.GetDestination();
+
+                std::string runway = fp.GetFlightPlanData().GetArrivalRwy();
+
+                std::string fix = StarName.substr(0, 5);
+
+                std::string new_star = FetchJsonData(airport, runway, fix).get<std::string>();
+
+                std::string star_check = CorrectStar[callsign];
+                    CorrectStar[callsign] = "";
+                    CorrectStar[callsign] = (CorrectStar[callsign] + new_star);
+                    int& state = starState[callsign];  
+
+                    if (state == 0) {
+                        state = 1;
+                    } else if (state == 1) {
+                        state = 2;
+                    } else if (state == 2) {
+                        state = 1;  
+                    }
+            }
+            if (FunctionId == RTE_CHECKER_ID) {
+            CRadarTarget rt = RadarTargetSelectASEL(); // get ASEL target instead
+                            if (!rt.IsValid())
+                                return;
+
+                            std::string callsign = rt.GetCallsign(); 
+                            CSectorElement secElm = CSectorElement();
+
+                            std::string StarName = fpData.GetStarName();
+                            std::string airport = fpData.GetDestination();
+            }        
+        }
     virtual void OnGetTagItem(
         CFlightPlan FlightPlan,
         CRadarTarget rt,
@@ -431,41 +528,66 @@ public:
         {
             if (!rt.IsValid())
                 return;
-            std::string callsign = rt.GetCallsign();
-            CFlightPlanData fpData = FlightPlan.GetFlightPlanData();
-            CSectorElement secElm = CSectorElement();
+            std::string callsign = rt.GetCallsign();            CFlightPlanData fpData = FlightPlan.GetFlightPlanData();
 
             std::string StarName = fpData.GetStarName();
             std::string airport = fpData.GetDestination();
 
             std::string runway = FlightPlan.GetFlightPlanData().GetArrivalRwy();
 
-            std::string new_star = StarName.substr(0, 5);
+            std::string fix = StarName.substr(0, 5);
 
-            strncpy_s(sItemString, 16, new_star.c_str(), _TRUNCATE);
-
-            int state = 0; 
-
-            auto it = starState.find(callsign);
-            if (it != starState.end())
-                state = it->second;
-
+            auto new_star = CorrectStar.find(callsign);
+            strncpy_s(sItemString, 16, StarName.c_str(), _TRUNCATE);
+            *pRgbColor = RGB(255, 92, 103);
             *pColorCode = TAG_COLOR_RGB_DEFINED;
 
-            switch (state)
+            std::string old_route = fpData.GetRoute();
+            std::string new_route = old_route;
+            std::string star_removal_string = fix;
+
+            if (new_star == CorrectStar.end())
             {
-            case 0:
-                *pRgbColor = RGB(255, 92, 103); // red
-                break;
-
-            case 1:
-                *pRgbColor = RGB(0, 255, 0);    // green
-                break;
-
-            case 2:
-                *pRgbColor = RGB(255, 255, 0);  // yellow
-                break;
+                return;
             }
+
+            auto it = starState.find(callsign);
+            if (it != starState.end()){
+                state = it->second;
+                *pColorCode = TAG_COLOR_RGB_DEFINED;
+                *pRgbColor = RGB(255, 92, 103);
+                switch (state){
+                    case 0:
+                        strncpy_s(sItemString, 16, StarName.c_str(), _TRUNCATE);
+                        *pRgbColor = RGB(255, 92, 103);
+                        break;
+                    case 1:
+                        strncpy_s(sItemString, 16, new_star->second.c_str(), _TRUNCATE);
+                        *pRgbColor = RGB(237, 186, 57);
+                        change_route(fpData, old_route, new_star->second, runway);
+                        break;
+                    case 2:
+                        strncpy_s(sItemString, 16, new_star->second.c_str(), _TRUNCATE);
+                        *pRgbColor = RGB(99, 255, 107);
+                    break;
+                    }
+                }
+            
+        }
+        if (ItemCode == RTE_CHECKER_ID){
+            if (!rt.IsValid())
+                return;
+            std::string callsign = rt.GetCallsign();            
+            CFlightPlanData fpData = FlightPlan.GetFlightPlanData();
+
+            std::string StarName = fpData.GetStarName();
+            std::string airport = fpData.GetDestination();
+
+            std::string runway = FlightPlan.GetFlightPlanData().GetArrivalRwy();
+
+            strncpy_s(sItemString, 16, "RTE", _TRUNCATE);
+            *pRgbColor = RGB(255, 92, 103);
+            *pColorCode = TAG_COLOR_RGB_DEFINED;
         }
     }
     virtual CRadarScreen* OnRadarScreenCreated(
