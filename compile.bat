@@ -1,73 +1,110 @@
-@echo off
-echo Compiling Indra APC Plugin...
+#pragma once
+#include <windows.h>
+#include <cstring>
+#include "EuroScopePlugIn.h"
 
-where cl >nul 2>nul
-if errorlevel 1 (
-    if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars32.bat" (
-        call "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars32.bat"
-    ) else if exist "%ProgramFiles%\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars32.bat" (
-        call "%ProgramFiles%\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars32.bat"
-    )
-)
+namespace SMode
+{
+    const int kIndicatorVerticalOffset = 4;
+    const int kTrackColorSampleRadius = 2;
+    const int kMaximumGroundSpeedKnots = 80;
+    const char kSModeIndicatorText[] = "S";
 
-where cl >nul 2>nul
-if errorlevel 1 (
-    echo MSVC compiler not found. Install Visual Studio Build Tools, or run from a Developer Command Prompt.
-    exit /b 2
-)
+    inline bool TryGetRenderedTrackColor(HDC hDC, const POINT& trackPoint, COLORREF* color)
+    {
+        const COLORREF background =
+            GetPixel(hDC, trackPoint.x + kTrackColorSampleRadius + 1, trackPoint.y + kTrackColorSampleRadius + 3);
 
-set SOURCES=src\Plugin.cpp
-set OUTPUT=build\MagPlugin.dll
-set ES_LIB=
-set ES_INCLUDE=
+        for (int radius = 0; radius <= kTrackColorSampleRadius; ++radius) {
+            for (int y = trackPoint.y - radius; y <= trackPoint.y + radius; ++y) {
+                for (int x = trackPoint.x - radius; x <= trackPoint.x + radius; ++x) {
+                    if (x != trackPoint.x - radius && x != trackPoint.x + radius &&
+                        y != trackPoint.y - radius && y != trackPoint.y + radius)
+                        continue;
+                    const COLORREF sample = GetPixel(hDC, x, y);
+                    if (sample != CLR_INVALID && sample != GetBkColor(hDC) && sample != background) {
+                        *color = sample;
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 
-if exist "EuroScopePlugIn.lib"        set ES_LIB=EuroScopePlugIn.lib
-if exist "EuroScopePlugInDll.lib"     set ES_LIB=EuroScopePlugInDll.lib
-if exist "lib\EuroScopePlugIn.lib"    set ES_LIB=lib\EuroScopePlugIn.lib
-if exist "lib\EuroScopePlugInDll.lib" set ES_LIB=lib\EuroScopePlugInDll.lib
+    inline bool HasModeC(const EuroScopePlugIn::CRadarTarget& target)
+    {
+        const EuroScopePlugIn::CRadarTargetPositionData position = target.GetPosition();
+        return position.IsValid() && position.GetTransponderC();
+    }
 
-if exist "include\EuroScopePlugIn.h" set ES_INCLUDE=include
-if exist "src\EuroScopePlugIn.h"     set ES_INCLUDE=src
-if exist "lib\EuroScopePlugIn.h"     set ES_INCLUDE=lib
-if exist "EuroScopePlugIn.h"         set ES_INCLUDE=.
+    inline bool IsKnownGroundState(const char* groundState)
+    {
+        return groundState != nullptr &&
+               (lstrcmpiA(groundState, "STUP") == 0 ||
+                lstrcmpiA(groundState, "PUSH") == 0 ||
+                lstrcmpiA(groundState, "TAXI") == 0 ||
+                lstrcmpiA(groundState, "DEPA") == 0 ||
+                lstrcmpiA(groundState, "ARR")  == 0 ||
+                lstrcmpiA(groundState, "TAXIIN") == 0 ||
+                lstrcmpiA(groundState, "PARK") == 0);
+    }
 
-if "%ES_LIB%"=="" (
-    echo Missing EuroScope SDK import library.
-    echo Copy EuroScopePlugIn.lib or EuroScopePlugInDll.lib into this folder,
-    echo or put it in a lib subfolder, then run compile.bat again.
-    exit /b 2
-)
+    inline bool IsOnGround(EuroScopePlugIn::CPlugIn* plugin, const EuroScopePlugIn::CRadarTarget& target)
+    {
+        EuroScopePlugIn::CFlightPlan fp = target.GetCorrelatedFlightPlan();
+        if (!fp.IsValid() && plugin != nullptr)
+            fp = plugin->FlightPlanSelect(target.GetCallsign());
+        return fp.IsValid() && IsKnownGroundState(fp.GetGroundState());
+    }
 
-if "%ES_INCLUDE%"=="" (
-    echo Missing EuroScope SDK header: EuroScopePlugIn.h
-    echo Copy EuroScopePlugIn.h from the EuroScope plugin SDK into:
-    echo   %CD%\lib
-    echo The matching import library is already present at: %ES_LIB%
-    exit /b 2
-)
+    inline bool LooksLikeGroundTraffic(const EuroScopePlugIn::CRadarTarget& target)
+    {
+        return target.GetGS() <= kMaximumGroundSpeedKnots;
+    }
 
-echo Using EuroScope library: %ES_LIB%
-echo Using EuroScope headers: %ES_INCLUDE%
+    inline void DrawIndicator(HDC hDC, EuroScopePlugIn::CPlugIn* plugin,
+                               EuroScopePlugIn::CRadarTarget& target,
+                               EuroScopePlugIn::CRadarScreen* screen)
+    {
+        if (!HasModeC(target)) return;
 
-if not exist build mkdir build
+        const EuroScopePlugIn::CRadarTargetPositionData position = target.GetPosition();
+        if (IsOnGround(plugin, target) || LooksLikeGroundTraffic(target)) return;
 
-cl /nologo /LD /MD /O2 /Oi /GL /EHsc ^
-    /std:c++14 ^
-    /D "_CRT_SECURE_NO_WARNINGS" ^
-    /D "WIN32_LEAN_AND_MEAN" ^
-    /I "%ES_INCLUDE%" ^
-    /I "include" ^
-    /I "src" ^
-    /Fe"%OUTPUT%" ^
-    %SOURCES% ^
-    /link /SUBSYSTEM:WINDOWS /MACHINE:X86 /LTCG /OPT:REF /OPT:ICF /DLL ^
-    /EXPORT:EuroScopePlugInInit=?EuroScopePlugInInit@@YAXPAPAVCPlugIn@EuroScopePlugIn@@@Z ^
-    /EXPORT:EuroScopePlugInExit=?EuroScopePlugInExit@@YAXXZ ^
-    "%ES_LIB%" user32.lib gdi32.lib ws2_32.lib winhttp.lib
+        const POINT trackPoint = screen->ConvertCoordFromPositionToPixel(position.GetPosition());
 
-if %errorlevel% == 0 (
-    echo Compilation successful! Output: %OUTPUT%
-) else (
-    echo Compilation failed with error code %errorlevel%
-    exit /b %errorlevel%
-)
+        COLORREF color = {};
+        if (!TryGetRenderedTrackColor(hDC, trackPoint, &color))
+            color = GetTextColor(hDC);
+
+        HFONT font = CreateFontA(-12, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+                                  ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                                  DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, "./EuroScope.tff");
+
+        HFONT oldFont = font ? static_cast<HFONT>(SelectObject(hDC, font)) : nullptr;
+        const COLORREF oldColor = SetTextColor(hDC, color);
+        const int oldBkMode = SetBkMode(hDC, TRANSPARENT);
+
+        SIZE textSize = {};
+        GetTextExtentPoint32A(hDC, kSModeIndicatorText, (int)std::strlen(kSModeIndicatorText), &textSize);
+        TextOutA(hDC, trackPoint.x - (textSize.cx / 2), trackPoint.y + kIndicatorVerticalOffset,
+                 kSModeIndicatorText, (int)std::strlen(kSModeIndicatorText));
+
+        SetBkMode(hDC, oldBkMode);
+        SetTextColor(hDC, oldColor);
+        if (oldFont) SelectObject(hDC, oldFont);
+        if (font) DeleteObject(font);
+    }
+
+    inline void DrawAllIndicators(HDC hDC, EuroScopePlugIn::CPlugIn* plugin,
+                                   EuroScopePlugIn::CRadarScreen* screen)
+    {
+        for (EuroScopePlugIn::CRadarTarget target = plugin->RadarTargetSelectFirst();
+             target.IsValid();
+             target = plugin->RadarTargetSelectNext(target))
+        {
+            DrawIndicator(hDC, plugin, target, screen);
+        }
+    }
+}
