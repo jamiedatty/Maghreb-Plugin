@@ -1,0 +1,32 @@
+[
+{
+  "directory": "E:/CLion Projects/cmake-build-debug",
+  "command": "\"E:\\CLion 2026.1.3\\bin\\mingw\\bin\\g++.exe\" -I\"E:/CLion Projects/DATA\" -I\"E:/CLion Projects/include\" -I\"E:/CLion Projects/include/nlohmann\" -I\"E:/CLion Projects/lib\" -I\"E:/CLion Projects/src\" -I\"E:/CLion Projects/src/FMP\" -I\"E:/CLion Projects/src/S-Mode\" -I\"E:/CLion Projects/src/VersionControl\" -g -std=gnu++14 -fdiagnostics-color=always -o CMakeFiles\\CLion_Projects.dir\\src\\FMP\\FMPMain.cpp.obj -c \"E:\\CLion Projects\\src\\FMP\\FMPMain.cpp\"",
+  "file": "E:/CLion Projects/src/FMP/FMPMain.cpp",
+  "output": "E:/CLion Projects/cmake-build-debug/CMakeFiles/CLion_Projects.dir/src/FMP/FMPMain.cpp.obj"
+},
+{
+  "directory": "E:/CLion Projects/cmake-build-debug",
+  "command": "\"E:\\CLion 2026.1.3\\bin\\mingw\\bin\\g++.exe\" -I\"E:/CLion Projects/DATA\" -I\"E:/CLion Projects/include\" -I\"E:/CLion Projects/include/nlohmann\" -I\"E:/CLion Projects/lib\" -I\"E:/CLion Projects/src\" -I\"E:/CLion Projects/src/FMP\" -I\"E:/CLion Projects/src/S-Mode\" -I\"E:/CLion Projects/src/VersionControl\" -g -std=gnu++14 -fdiagnostics-color=always -o CMakeFiles\\CLion_Projects.dir\\src\\S-Mode\\S-Mode.cpp.obj -c \"E:\\CLion Projects\\src\\S-Mode\\S-Mode.cpp\"",
+  "file": "E:/CLion Projects/src/S-Mode/S-Mode.cpp",
+  "output": "E:/CLion Projects/cmake-build-debug/CMakeFiles/CLion_Projects.dir/src/S-Mode/S-Mode.cpp.obj"
+},
+{
+  "directory": "E:/CLion Projects/cmake-build-debug",
+  "command": "\"E:\\CLion 2026.1.3\\bin\\mingw\\bin\\g++.exe\" -I\"E:/CLion Projects/DATA\" -I\"E:/CLion Projects/include\" -I\"E:/CLion Projects/include/nlohmann\" -I\"E:/CLion Projects/lib\" -I\"E:/CLion Projects/src\" -I\"E:/CLion Projects/src/FMP\" -I\"E:/CLion Projects/src/S-Mode\" -I\"E:/CLion Projects/src/VersionControl\" -g -std=gnu++14 -fdiagnostics-color=always -o CMakeFiles\\CLion_Projects.dir\\src\\VersionControl\\Version.cpp.obj -c \"E:\\CLion Projects\\src\\VersionControl\\Version.cpp\"",
+  "file": "E:/CLion Projects/src/VersionControl/Version.cpp",
+  "output": "E:/CLion Projects/cmake-build-debug/CMakeFiles/CLion_Projects.dir/src/VersionControl/Version.cpp.obj"
+},
+{
+  "directory": "E:/CLion Projects/cmake-build-debug",
+  "command": "\"E:\\CLion 2026.1.3\\bin\\mingw\\bin\\g++.exe\" -I\"E:/CLion Projects/DATA\" -I\"E:/CLion Projects/include\" -I\"E:/CLion Projects/include/nlohmann\" -I\"E:/CLion Projects/lib\" -I\"E:/CLion Projects/src\" -I\"E:/CLion Projects/src/FMP\" -I\"E:/CLion Projects/src/S-Mode\" -I\"E:/CLion Projects/src/VersionControl\" -g -std=gnu++14 -fdiagnostics-color=always -o CMakeFiles\\CLion_Projects.dir\\src\\plugin.cpp.obj -c \"E:\\CLion Projects\\src\\plugin.cpp\"",
+  "file": "E:/CLion Projects/src/plugin.cpp",
+  "output": "E:/CLion Projects/cmake-build-debug/CMakeFiles/CLion_Projects.dir/src/plugin.cpp.obj"
+},
+{
+  "directory": "E:/CLion Projects/cmake-build-debug",
+  "command": "\"E:\\CLion 2026.1.3\\bin\\mingw\\bin\\g++.exe\" -I\"E:/CLion Projects/DATA\" -I\"E:/CLion Projects/include\" -I\"E:/CLion Projects/include/nlohmann\" -I\"E:/CLion Projects/lib\" -I\"E:/CLion Projects/src\" -I\"E:/CLion Projects/src/FMP\" -I\"E:/CLion Projects/src/S-Mode\" -I\"E:/CLion Projects/src/VersionControl\" -g -std=gnu++14 -fdiagnostics-color=always -o CMakeFiles\\CLion_Projects.dir\\src\\S-Mode.cpp.obj -c \"E:\\CLion Projects\\src\\S-Mode.cpp\"",
+  "file": "E:/CLion Projects/src/S-Mode.cpp",
+  "output": "E:/CLion Projects/cmake-build-debug/CMakeFiles/CLion_Projects.dir/src/S-Mode.cpp.obj"
+}
+]

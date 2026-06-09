@@ -1,8 +1,12 @@
 #include <windows.h>
 #include <string>
-#include <objidl.h>   
+#include <objidl.h>
 #include <gdiplus.h>
+
+#define DllSpecEuroScope
+#define ESINDEX void *
 #include "EuroScopePlugIn.h"
+
 #include "TopSkyFunctions.h"
 #include "S-Mode/S-Mode.h"
 #include "IndraApcInterop.h"
@@ -14,9 +18,25 @@
 
 #include <set>
 
+#include "VersionControl/Version.h"
+
 #pragma comment(lib, "gdiplus.lib")
-#pragma comment(linker, "/EXPORT:EuroScopePlugInInit=_EuroScopePlugInInit")
-#pragma comment(linker, "/EXPORT:EuroScopePlugInExit=_EuroScopePlugInExit")
+
+/*/ For future maintainers of this plugin:
+ * This is how you change the AIRAC which the plugin is designed for
+ * This fetches from the Github Repo where you also must update the Latest AIRAC
+ * As of 09 / 06 / 2026 I was in the process of fetching from the Users Loaded (.sct) file
+ * If you are seeing this that was obviously not successful and i wish the next person good luck
+ */
+const int AIRACDesignedFor = 2606;
+
+/*/
+ * Another message to future maintainers:
+ * I wish you the best of luck with this codebase
+ * it was made by a person learning C++ on the job
+ * and a small bit of AI when i couldnt do something
+ * it is very shoddy, especially this file, the rest somewhat make sense
+ */
 
 using namespace EuroScopePlugIn;
 using namespace Gdiplus;
@@ -596,6 +616,28 @@ public:
             "GPL V3"
         )
     {
+        try
+        {
+            std::string LatestAIRAC = FetchJsonVersionControl();
+            if (stoi(LatestAIRAC) > AIRACDesignedFor)
+            {
+                std::string OutOfDateMessage =
+                    "Your sectorfile is currently out of date, the latest version is " +
+                    LatestAIRAC +
+                    ". Please update your sectorfile before connecting to the network.";
+
+                MessageBoxA(NULL, OutOfDateMessage.c_str(), "Maghreb vACC", MB_OK | MB_ICONERROR);
+            }
+        }
+        catch (...)
+        {
+            MessageBoxA(
+                NULL,
+                "Could not check latest AIRAC version. Plugin will continue loading.",
+                "Maghreb vACC",
+                MB_OK | MB_ICONWARNING
+            );
+        }
         RegisterTagItemType("Star TAG Display", STAR_TAG_ID);
         RegisterTagItemFunction("STAR Click", STAR_TAG_FUNCTION);
 
@@ -939,10 +981,11 @@ public:
             m_Screen->RequestRefresh();
     }
 
-    virtual ~MyPlugIn() {}
+    ~MyPlugIn() override {}
 };
 
 MyPlugIn* gPlugin = nullptr;
+
 
 __declspec(dllexport) void EuroScopePlugInInit(CPlugIn** ppPlugIn)
 {
@@ -952,4 +995,6 @@ __declspec(dllexport) void EuroScopePlugInInit(CPlugIn** ppPlugIn)
 
 __declspec(dllexport) void EuroScopePlugInExit()
 {
+    delete gPlugin;
+    gPlugin = nullptr;
 }
