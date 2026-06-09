@@ -16,7 +16,7 @@ if errorlevel 1 (
     exit /b 2
 )
 
-set SOURCES=src\Plugin.cpp src\Screen.cpp src\Storage.cpp
+set SOURCES=src\Plugin.cpp 
 set OUTPUT=build\IndraApc.dll
 set ES_LIB=
 set ES_INCLUDE=
