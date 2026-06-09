@@ -2636,6 +2636,7 @@ private:
     friend CPlugInData ;
 
 public:
+    virtual ~CRadarScreen() = default;
 
     //---CRadarScreen--------------------------------------------------
 
