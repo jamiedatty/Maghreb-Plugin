@@ -16,8 +16,8 @@ if errorlevel 1 (
     exit /b 2
 )
 
-set SOURCES=src\Plugin.cpp src\VersionControl\Version.cpp
-set OUTPUT=build\MagPlugin.dll
+set SOURCES=src\Plugin.cpp 
+set OUTPUT=build\IndraApc.dll
 set ES_LIB=
 set ES_INCLUDE=
 
@@ -63,7 +63,7 @@ cl /nologo /LD /MD /O2 /Oi /GL /EHsc ^
     /link /SUBSYSTEM:WINDOWS /MACHINE:X86 /LTCG /OPT:REF /OPT:ICF /DLL ^
     /EXPORT:EuroScopePlugInInit=?EuroScopePlugInInit@@YAXPAPAVCPlugIn@EuroScopePlugIn@@@Z ^
     /EXPORT:EuroScopePlugInExit=?EuroScopePlugInExit@@YAXXZ ^
-    "%ES_LIB%" user32.lib gdi32.lib gdiplus.lib ws2_32.lib winhttp.lib
+    "%ES_LIB%" user32.lib gdi32.lib ws2_32.lib winhttp.lib
 
 if %errorlevel% == 0 (
     echo Compilation successful! Output: %OUTPUT%
